@@ -1,0 +1,77 @@
+import gym
+import numpy as np
+
+# Create the environment
+env = gym.make('MontezumaRevenge-v0')
+
+# Set the exploration rate and learning rate
+exploration_rate = 1.0
+learning_rate = 0.5
+
+# Initialize the Q-table with zeros
+q_table = np.zeros((env.observation_space.n, env.action_space.n))
+
+# Set the discount rate
+discount_rate = 0.95
+
+# Set the curiosity rate
+curiosity_rate = 0.01
+
+# Set the maximum number of iterations
+max_iterations = 1000
+
+# Set the reward for killing an enemy
+kill_reward = 10
+
+# Set the penalty for death
+death_penalty = -10
+
+# Iterate through the maximum number of iterations
+for i in range(max_iterations):
+    # Reset the environment
+    state = env.reset()
+
+    # Set the total reward for the episode to zero
+    total_reward = 0
+
+    # Set the flag indicating whether the episode is done to False
+    done = False
+
+    # Run the episode until it is done
+    while not done:
+        # Choose an action using an epsilon-greedy policy
+        if np.random.uniform(0, 1) < exploration_rate:
+            action = env.action_space.sample()
+        else:
+            action = np.argmax(q_table[state, :])
+
+        # Take the action and observe the new state and reward
+        new_state, reward, done, info = env.step(action)
+
+        # Update the Q-value for the action taken
+        q_table[state, action] = (1 - learning_rate) * q_table[state, action] + learning_rate * (reward + discount_rate * np.max(q_table[new_state, :]))
+
+        # Add the curiosity bonus to the reward
+        reward += curiosity_rate * np.abs(np.max(q_table[new_state, :]) - np.max(q_table[state, :]))
+
+        # Check if the episode ended in a kill
+        if 'enemy' in info and info['enemy'] == 'killed':
+            # Add the kill reward to the total reward
+            total_reward += kill_reward
+
+        # Check if the episode ended in death
+        if 'player' in info and info['player'] == 'dead':
+            # Add the death penalty to the total reward
+            total_reward += death_penalty
+
+        # Update the total reward
+        total_reward += reward
+
+        # Set the new state as the current state
+        state = new_state
+
+    # Decrease the exploration rate over time
+    exploration_rate = exploration_rate * 0.99
+
+# Print the final Q-table
+print(q_table)
